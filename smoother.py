@@ -1,20 +1,29 @@
-from dataclasses import dataclass
 import math
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any  # , Iterable, Tuple
 
 Point = tuple[float, float]
 
+
 @dataclass
 class LocationData:
     id: int
-    x: float
-    y: float
+    point: Point
+
 
 @dataclass
 class LocationDataRates:
     location: LocationData
     rate: float
+
+
+@dataclass
+class GridMapDefinition:
+    rows: int
+    cols: int
+    grid_size: float
+
 
 class SearchWindow:
     random_locations: list[tuple[int, float, float]]
@@ -93,31 +102,31 @@ class PointInterpolator:
 
 
 class Smoother:
-    data: list[list[float]]
-    point_data: list[list[float]]
+    # data: list[list[float]]
+    point_data: list[LocationDataRates]
     smoothed_data: list[list[float]]
-    grid_size: int
+    grid_settings: GridMapDefinition
     half_distance: int
     search_radius: int
 
     def __init__(
         self,
-        data: list[list[float]],
-        point_data: list[list[float]],
-        grid_size: int,
+        # data: list[list[float]],
+        point_data: list[LocationDataRates],
+        grid_settings: GridMapDefinition,
         half_distance: int,
         search_radius: int,
     ):
-        self.data = data
+        # self.data = data
         self.point_data = point_data
-        self.grid_size = grid_size
+        self.grid_settings = grid_settings
         self.half_distance = half_distance
         self.search_radius = search_radius
         # self.smoothed_data = None
 
     def prepare(self):
         # Prepare data for smoothing, generate rates for each location
-        #
+        pass
 
     def smooth(self):
         # Perform smoothing
@@ -139,7 +148,7 @@ class Smoother:
         pass
 
 
-def create_random_data_matrix(
+def create_grid_map(
     rows: int, cols: int, min_val: float, max_val: float
 ) -> list[list[float]]:
     """Create a random data matrix."""
@@ -150,8 +159,8 @@ def create_random_data_matrix(
     ]
 
 
-def create_random_locations(
-    xcols: int, nrows: int, grid_size: int, number_of_locations: int
+def create_random_location_data(
+    grid_settings: GridMapDefinition, number_of_locations: int
 ) -> list[LocationDataRates]:
     """Create random locations within a grid (index,x,y, rate).
     - nrows: Number of rows in the grid.
@@ -162,15 +171,18 @@ def create_random_locations(
     returns: List of LocationDataRates objects.
     """
     from random import random
+
     rate_data = []
     for loc_id in range(number_of_locations):
-        loc_data = LocationData(loc_id + 1,
-        random() * xcols * grid_size, # x
-        random() * nrows * grid_size # y
+        loc_data = LocationData(
+            loc_id + 1,
+            random() * grid_settings.cols * grid_settings.grid_size,  # x
+            random() * grid_settings.rows * grid_settings.grid_size,  # y
         )
-        rate_data.append(LocationDataRates(loc_data, random() * 100)) # max rate = 100
+        rate_data.append(LocationDataRates(loc_data, random() * 100))  # max rate = 100
 
     return rate_data
+
 
 def create_random_locations(
     xcols: int, nrows: int, grid_size: int, number_of_locations: int
@@ -182,13 +194,15 @@ def create_random_locations(
     - number_of_locations: Number of random locations to generate.
     """
     from random import random
+
     rate_data = []
     for loc_id in range(number_of_locations):
-        loc_data = LocationData(loc_id + 1,
-        random() * xcols * grid_size, # x
-        random() * nrows * grid_size # y
+        loc_data = LocationData(
+            loc_id + 1,
+            random() * xcols * grid_size,  # x
+            random() * nrows * grid_size,  # y
         )
-        rate_data.append(LocationDataRates(loc_data, random() * 100)) # max rate = 100
+        rate_data.append(LocationDataRates(loc_data, random() * 100))  # max rate = 100
 
     return rate_data
 
@@ -196,16 +210,19 @@ def create_random_locations(
 if __name__ == "__main__":
     # data = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
     # create
-    data = create_random_data_matrix(1000, 1000, 0, 100)
-    grid_size = 500
+    # data = create_random_data_matrix(1000, 1000, 0, 100)
+    grid_settings = GridMapDefinition(1000, 1000, 500)
+    grid_size = grid_settings.grid_size
     half_distance = 10_000
     search_radius = 150_000
-    random_locations = create_random_locations(
-        xcols=1000, nrows=1000, grid_size=grid_size, number_of_locations=100
+    random_locations = create_random_location_data(
+        grid_settings, number_of_locations=100
     )
 
-    point_data = generate_random_rates(random_locations)
-    my_smoother = Smoother(data, point_data, grid_size, half_distance, search_radius)
+    # point_data = generate_random_rates(random_locations)
+    my_smoother = Smoother(
+        random_locations, grid_settings, half_distance, search_radius
+    )
     # generate rates for each location
     my_smoother.prepare()
     my_smoother.smooth()
