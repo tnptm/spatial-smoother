@@ -80,6 +80,17 @@ class GridMapDefinition:
 
 
 class SearchWindow:
+    """Search window for finding locations within a certain radius.
+
+    Args:
+        random_locations: List of random locations.
+        current_grid_point: Current grid point.
+        search_radius: Search radius.
+
+    Returns:
+        List of found locations within the search radius.
+    """
+
     random_locations: list[LocationDataRate]
     current_grid_point: Point
     search_radius: int
@@ -139,9 +150,14 @@ class DistanceWeightedInterpolator(Interpolator):
         return 1 / (1 + (distance / half_distance) ** 2)
 
     def interpolate(self, half_distance: float) -> float:
-        # Perform interpolation
-        # pass
+        """Interpolate the rate based on distance-weighted averaging.
 
+        Args:
+            half_distance: The half-distance used for weighting.
+
+        Returns:
+            The interpolated rate.
+        """
         smoothed_rate = 0
         sum_weights = 0
         for point_data in self.window_data:
@@ -159,20 +175,6 @@ class DistanceWeightedInterpolator(Interpolator):
         return weighted_mean
 
 
-# class PointInterpolator:
-#    def __init__(
-#        self,
-#        window_data: SearchWindow,
-#        interpolate_function: Interpolator,
-#    ):
-#        self.window_data: SearchWindow = window_data
-#        self.interpolate_function = interpolate_function
-
-# def interpolate(self, x: float, y: float) -> float:
-# Perform interpolation
-#    pass
-
-
 @dataclass
 class GridCellRate:
     point: Point
@@ -180,6 +182,8 @@ class GridCellRate:
 
 
 class Smoother:
+    """Smoother class for smoothing data using search window data."""
+
     # data: list[list[float]]
     point_data: list[LocationDataRate]
     smoothed_data: list[GridCellRate]
@@ -209,6 +213,12 @@ class Smoother:
         pass
 
     def smooth(self):
+        """
+        Perform smoothing using search_window_data
+
+        It uses a search window to find nearby data points and calculates the average value within the window.
+
+        """
         # Perform smoothing
         # pass
         ## CREATE colID,Xcoord list
@@ -248,9 +258,7 @@ class Smoother:
         # Perform smoothing using search_window_data
 
     def print(self) -> None:
-        # Print smoothed data
-        # print("not implemented")
-        # print(self.smoothed_data[0])
+        """Print smoothed data of 10 first cells as a sample"""
         for cell in self.smoothed_data[:10]:
             # for cell in row:
             print(
@@ -346,16 +354,12 @@ if __name__ == "__main__":
         grid_settings, number_of_locations=100
     )
 
-    # define interpolator object
-    #    interpolator = DistanceWeightedInterpolator()
-
     # point_data = generate_random_rates(random_locations)
     my_smoother = Smoother(
         random_locations,
         grid_settings,
         half_distance,
         search_radius,
-        #        interpolation_function=linear_interpolation,
     )
     # generate rates for each location
     # my_smoother.prepare()
@@ -363,7 +367,6 @@ if __name__ == "__main__":
     end_time = time.time()
     my_smoother.print()
     print(f"time taken: {end_time - start_time} seconds")
-    # my_smoother.save()
-    # my_smoother.plot()
-    # window_size = 2
-    # print(smooth_basic(data, window_size))
+    # my_smoother.save() TODO
+    # my_smoother.plot() TODO
+    # TODO: Implement plot method
