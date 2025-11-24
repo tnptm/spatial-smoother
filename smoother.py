@@ -41,17 +41,9 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from random import random
-
-# from pickletools import stackslice
-from typing import Any  # , Iterable, Tuple
-
-# from numba import njit
+from typing import Any
 
 Point = tuple[float, float]
-# @dataclass
-# class GridCell:
-#    row: int
-#    col: int
 
 
 @dataclass
@@ -249,13 +241,6 @@ class Smoother:
                 )
 
         self.smoothed_data = smoothed_data
-        # search_window_data = [
-        #    point_data
-        #    for point_data in self.point_data
-        #    if  <= self.search_radius
-        #    #and abs(point_data.y - y_coord) <= self.search_radius
-        # ]
-        # Perform smoothing using search_window_data
 
     def print(self) -> None:
         """Print smoothed data of 10 first cells as a sample"""
@@ -339,11 +324,6 @@ def create_random_locations(
 
 
 if __name__ == "__main__":
-    # data = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
-    # create
-    # data = create_random_data_matrix(1000, 1000, 0, 100)
-    #
-    #
     # Measeure time in ms
     start_time = time.time()
     grid_settings = GridMapDefinition(1000, 1000, 500)
