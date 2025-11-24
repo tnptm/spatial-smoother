@@ -2,9 +2,12 @@ import math
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from random import random
 
 # from pickletools import stackslice
 from typing import Any  # , Iterable, Tuple
+
+# from numba import njit
 
 Point = tuple[float, float]
 # @dataclass
@@ -102,13 +105,20 @@ class DistanceWeightedInterpolator(Interpolator):
         # pass
 
         smoothed_rate = 0
+        sum_weights = 0
         for point_data in self.window_data:
             # Perform interpolation using point_data
-            smoothed_rate += point_data.point_data.rate * self.distance_weight(
+            weight = point_data.point_data.rate * self.distance_weight(
                 point_data.distance, half_distance
             )
+            weighted_rate = weight * point_data.point_data.rate
+            smoothed_rate += weighted_rate
+            sum_weights += weight
 
-        return smoothed_rate
+        if sum_weights == 0:
+            return 0
+        weighted_mean = smoothed_rate / sum_weights
+        return weighted_mean
 
 
 # class PointInterpolator:
@@ -242,7 +252,6 @@ def create_random_location_data(
 
     returns: List of LocationDataRates objects.
     """
-    from random import random
 
     rate_data = []
     for loc_id in range(number_of_locations):
