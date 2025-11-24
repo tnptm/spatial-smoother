@@ -1,3 +1,41 @@
+"""
+Random Data Smoothing Application
+
+This module provides a framework for spatial data smoothing and interpolation using
+distance-weighted methods. It's designed to take randomly distributed point data
+with associated rates and generate a smoothed grid representation.
+
+Main Components:
+---------------
+- LocationData: Stores point location information (id and coordinates)
+- LocationDataRate: Associates a rate value with a location
+- SearchWindow: Finds all data points within a specified radius of a grid point
+- Interpolator: Abstract base class for interpolation methods
+- DistanceWeightedInterpolator: Implements distance-weighted interpolation
+- Smoother: Main class that orchestrates the smoothing process across a grid
+- GridMapDefinition: Defines the grid structure (rows, cols, cell size)
+
+Usage:
+------
+1. Define a grid using GridMapDefinition(rows, cols, grid_size)
+2. Create or load point data with associated rates (LocationDataRate objects)
+3. Initialize a Smoother with the grid settings, data, and interpolation parameters
+4. Call smooth() to generate interpolated values for each grid cell
+5. Use print(), save(), or plot() methods to output results
+
+The smoothing process:
+---------------------
+For each grid cell center:
+  1. Find all data points within the search radius
+  2. Calculate distance-weighted interpolation using those points
+  3. Store the smoothed rate value for that grid cell
+
+Parameters:
+----------
+- half_distance: Controls the decay rate of distance weighting
+- search_radius: Maximum distance to search for nearby data points
+"""
+
 import math
 import time
 from abc import ABC, abstractmethod
