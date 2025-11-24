@@ -23,6 +23,9 @@ The standard Python implementation using object-oriented design with dataclasses
 - Object-oriented design with `dataclass` decorators
 - Abstract base class for extensible interpolation methods
 - Comprehensive documentation
+- Matplotlib visualization with heatmap plotting
+- CSV output to stdout for data export
+- Command-line interface with `--all` flag
 
 **Main Components:**
 - `LocationData`: Stores point location information (id and coordinates)
@@ -32,6 +35,11 @@ The standard Python implementation using object-oriented design with dataclasses
 - `DistanceWeightedInterpolator`: Implements distance-weighted interpolation
 - `Smoother`: Main orchestrator for the smoothing process
 - `GridMapDefinition`: Defines grid structure (rows, cols, cell size)
+
+**Output Methods:**
+- `print()`: Display first 10 results in CSV format
+- `print(all=True)`: Display all results in CSV format (X,Y,Rate)
+- `plot()`: Generate matplotlib heatmap visualization using pcolormesh
 
 ### smoother_njit.py - Numba-Optimized Implementation
 
@@ -108,9 +116,32 @@ my_smoother = Smoother(
 # Perform smoothing
 my_smoother.smooth()
 
-# Display results
+# Display results (first 10 cells)
 my_smoother.print()
+
+# Display all results
+my_smoother.print(all=True)
+
+# Visualize with matplotlib
+my_smoother.plot()
 ```
+
+### Command Line Usage
+
+Run the smoother directly from the command line:
+
+```bash
+# Run with default output (first 10 cells)
+python smoother.py
+
+# Print all smoothed data to stdout (CSV format: X,Y,Rate)
+python smoother.py --all
+
+# Save output to file
+python smoother.py --all > output.csv
+```
+
+The script will prompt you to plot the results after smoothing completes.
 
 ### Numba-Optimized Version
 
@@ -162,14 +193,20 @@ python smoother_njit.py
 ```
 
 Expected performance characteristics:
-- **Pure Python**: Good for small grids (< 100x100) or prototyping
-- **Numba Version**: Recommended for production use and large grids (1000x1000+)
+- **Pure Python**: Good for small grids (< 100x100) or prototyping ( 15s - 30 s with a grid of 1000*1000 cells))
+- **Numba Version**: Recommended for production use and large grids (1000x1000+) takes about 0.4 times less time
 
 ## Dependencies
 
+### Pure Python Version (smoother.py)
 - Python 3.10+
-- numpy (for smoother_njit.py)
-- numba (for smoother_njit.py)
+- matplotlib (for plotting)
+- numpy (for grid visualization)
+
+### Numba Version (smoother_njit.py)
+- Python 3.10+
+- numpy
+- numba
 
 ## Notes
 
