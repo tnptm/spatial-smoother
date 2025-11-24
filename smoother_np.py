@@ -96,8 +96,11 @@ class SearchWindow:
         self.random_locations = random_locations
         self.search_radius_squared = search_radius_squared
         self.search_radius = math.sqrt(search_radius_squared)
-        self.data_points_sorted = sorted(
-            self.random_locations, key=lambda loc: loc.location_data.point[1] # sort by Y coordinate
+        #self.data_points_sorted = sorted(
+        #    self.random_locations, key=lambda loc: loc.location_data.point[1] # sort by Y coordinate
+        #)
+        self.np_data_points = np.array(
+            [[id, *loc.location_data.point, loc.rate]  for id,loc in enumerate(self.random_locations)]
         )
 
     @staticmethod
@@ -106,34 +109,32 @@ class SearchWindow:
         return (grid_p_x - point_x) ** 2 + (grid_p_y - point_y) ** 2
         
 
-    def find_locations_in_radius(self, current_grid_x: float, current_grid_y: float) -> list[tuple[LocationDataRate, float]]:
+    def find_locations_in_radius(self, current_grid_x: float, current_grid_y: float) -> np.ndarray:
         # Perform search
         #
         # Before calculating distances get locations in square 2*radius²
-        applicable_locations: list[tuple[LocationDataRate, float]] = []
+        #applicable_locations: list[tuple[LocationDataRate, float]] = []
         #found_y = False
         
         # caching limits
-        limit_y = current_grid_y + self.search_radius
-        lower_limit_y = current_grid_y - self.search_radius
+        #limit_y = current_grid_y + self.search_radius
+        #lower_limit_y = current_grid_y - self.search_radius
         
-        for data_point in self.data_points_sorted:
-            x, y = data_point.location_data.point
-            if (
-                lower_limit_y <= y <= limit_y and
-                #abs(current_grid_y - y) <= self.search_radius and                
-                abs(current_grid_x - x) <= self.search_radius
-            ):
-                # applicable_locations.append(location)
-                distance_sq = self.calc_distance_squared(
-                    current_grid_x, current_grid_y, x, y
-                )
-                if distance_sq <= self.search_radius_squared:
-                    applicable_locations.append((data_point, distance_sq))
-            elif y > limit_y:
-                # Since data is sorted by Y coordinate, we can break early
-                break
-        return applicable_locations
+        #limit_x = current_grid_x + self.search_radius        
+        grid_point = np.array([current_grid_x, current_grid_y])
+        dists = np.linalg.norm(self.np_data_points[:, 1:3] - grid_point, axis=1)
+        # add dists as a new column into the numby array self.np_data_points
+        np_distance_data = np.column_stack((self.np_data_points[dists <= self.search_radius], dists[dists <= self.search_radius]**2))
+        #selected_points = np_distance_data[dists <= self.search_radius]
+        #selected_points = self.np_data_points[dists <= self.search_radius]
+        #for point in selected_points:
+        #    loc_data_rate = LocationDataRate(
+        #        LocationData(int(point[0])+1, (point[1], point[2])),
+        #        point[3],
+        #    )
+        #    distance_squared = point[4]
+        #    applicable_locations.append( (loc_data_rate, distance_squared) )
+        return np_distance_data #applicable_locations
 
 
 class Interpolator(ABC):
@@ -159,12 +160,12 @@ class DistanceWeightedInterpolator(Interpolator):
         return 1 / (1 + (distance_squared / half_distance_squared) )
     
     
-    def interpolate(self, window_data: list[tuple[LocationDataRate, float]], half_distance_squared: float) -> float:
+    def interpolate(self, window_data: np.ndarray, half_distance_squared: float) -> float:
         """Interpolate the rate based on distance-weighted averaging.
 
         Args:
             half_distance_squared: The half-distance squared used for weighting.
-            window_data: List of tuples containing LocationDataRate and its squared distance.
+            window_data: np.ndarray with columns [id, x, y, rate, distance_squared]
 
         Returns:
             The interpolated rate.
@@ -174,9 +175,9 @@ class DistanceWeightedInterpolator(Interpolator):
         for point_data in window_data:
             # Perform interpolation using point_data
             dist_weight = self.distance_weight_sq(
-                point_data[1], half_distance_squared    
+                point_data[4], half_distance_squared    
             )
-            smoothed_rate += dist_weight * point_data[0].rate
+            smoothed_rate += dist_weight * point_data[3]
             total_weights += dist_weight
 
         if total_weights == 0:
