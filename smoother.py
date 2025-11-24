@@ -86,42 +86,45 @@ class SearchWindow:
     """
 
     random_locations: list[LocationDataRate]
-    current_grid_point: Point
-    search_radius: int
+    #current_grid_point: Point
+    search_radius_squared: int
 
     def __init__(
         self,
         random_locations: list[LocationDataRate],
-        current_grid_point: Point,
-        search_radius: int,
+        #current_grid_x: float,
+        #current_grid_y: float,
+        search_radius_squared: int,
     ):
         self.random_locations = random_locations
-        self.current_grid_point = current_grid_point
-        self.search_radius = search_radius
+        #self.current_grid_x = current_grid_x
+        #self.current_grid_y = current_grid_y
+        #self.search_radius = search_radius
+        self.search_radius_squared = search_radius_squared
 
     @staticmethod
-    def calc_distance(grid_xy: Point, locationxy: Point) -> float:
-        return math.sqrt(
-            (grid_xy[0] - locationxy[0]) ** 2 + (grid_xy[1] - locationxy[1]) ** 2
-        )
+    def calc_distance_squared(grid_p_x: float, grid_p_y: float, locationxy: Point) -> float:
+        """Calculate squared distance between two points."""
+        return (grid_p_x - locationxy[0]) ** 2 + (grid_p_y - locationxy[1]) ** 2
+        
 
-    def find_locations_in_radius(self) -> list[LocationFound]:
+    def find_locations_in_radius(self, current_grid_x: float, current_grid_y: float) -> list[LocationFound]:
         # Perform search
         #
         # Before calculating distances get locations in square 2*radius²
         applicable_locations: list[LocationFound] = []
         for data_point in self.random_locations:
             if (
-                abs(self.current_grid_point[0] - data_point.location_data.point[0])
-                <= self.search_radius
-                and abs(self.current_grid_point[1] - data_point.location_data.point[1])
-                <= self.search_radius
+                abs(current_grid_x - data_point.location_data.point[0])
+                <= self.search_radius_squared
+                and abs(current_grid_y - data_point.location_data.point[1])
+                <= self.search_radius_squared
             ):
                 # applicable_locations.append(location)
-                distance = self.calc_distance(
-                    self.current_grid_point, data_point.location_data.point
+                distance = self.calc_distance_squared(
+                    current_grid_x, current_grid_y, data_point.location_data.point
                 )
-                if distance <= self.search_radius:
+                if distance <= self.search_radius_squared:
                     applicable_locations.append(LocationFound(data_point, distance))
         return applicable_locations
 
@@ -153,19 +156,19 @@ class DistanceWeightedInterpolator(Interpolator):
             The interpolated rate.
         """
         smoothed_rate = 0
-        sum_weights = 0
+        total_weights = 0
         for point_data in self.window_data:
             # Perform interpolation using point_data
-            weight = point_data.point_data.rate * self.distance_weight(
+            dist_weight = self.distance_weight(
                 point_data.distance, half_distance
             )
-            weighted_rate = weight * point_data.point_data.rate
-            smoothed_rate += weighted_rate
-            sum_weights += weight
+            smoothed_rate += dist_weight * point_data.point_data.rate
+            total_weights += dist_weight
 
-        if sum_weights == 0:
+        if total_weights == 0:
             return 0
-        weighted_mean = smoothed_rate / sum_weights
+        weighted_mean = smoothed_rate / total_weights
+        
         return weighted_mean
 
 
@@ -201,6 +204,7 @@ class Smoother:
         self.search_radius = search_radius
         # self.interpolation_function = interpolation_function
         self.smoothed_data = []
+        self.search_radius_squared = search_radius ** 2
 
     def prepare(self):
         # Prepare data for smoothing, generate rates for each location
@@ -220,6 +224,12 @@ class Smoother:
             column_id * self.grid_settings.grid_size
             for column_id in range(self.grid_settings.cols)
         ]
+        cell_center = self.grid_settings.grid_size / 2
+
+        search_window = SearchWindow(
+            self.point_data, self.search_radius_squared
+        )
+
 
         smoothed_data = []
         for row in range(self.grid_settings.rows):
@@ -228,14 +238,12 @@ class Smoother:
                 # value = 0
                 # count = 0
                 # define search window data
-                grid_cell_center_x = x_coord + (self.grid_settings.grid_size / 2)
-                grid_cell_center_y = y_coord + self.grid_settings.grid_size / 2
-                grid_cell_center = Point([grid_cell_center_x, grid_cell_center_y])
-                search_window_points = SearchWindow(
-                    self.point_data, grid_cell_center, self.search_radius
-                ).find_locations_in_radius()
+                grid_cell_center_x = x_coord + cell_center
+                grid_cell_center_y = y_coord + cell_center
+                #grid_cell_center = Point([grid_cell_center_x, grid_cell_center_y])
 
-                interpolator = DistanceWeightedInterpolator(search_window_points)
+
+                interpolator = DistanceWeightedInterpolator(search_window.find_locations_in_radius(grid_cell_center_x, grid_cell_center_y))
                 smoothed_rate_xy = interpolator.interpolate(self.half_distance)
 
                 smoothed_data.append(
@@ -284,15 +292,15 @@ class Smoother:
         plt.show()
 
 
-def create_grid_map(
-    rows: int, cols: int, min_val: float, max_val: float
-) -> list[list[float]]:
-    """Create a random data matrix."""
-    import random
+#def create_grid_map(
+#    rows: int, cols: int, min_val: float, max_val: float
+#) -> list[list[float]]:
+#    """Create a random data matrix."""
+    #import random
 
-    return [
-        [random.uniform(min_val, max_val) for _ in range(cols)] for _ in range(rows)
-    ]
+    #return [
+    #    [random.uniform(min_val, max_val) for _ in range(cols)] for _ in range(rows)
+    #]
 
 
 def create_random_location_data(
