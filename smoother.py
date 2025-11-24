@@ -101,6 +101,7 @@ class SearchWindow:
         #self.current_grid_y = current_grid_y
         #self.search_radius = search_radius
         self.search_radius_squared = search_radius_squared
+        self.search_radius = math.sqrt(search_radius_squared)
 
     @staticmethod
     def calc_distance_squared(grid_p_x: float, grid_p_y: float, locationxy: Point) -> float:
@@ -116,16 +117,16 @@ class SearchWindow:
         for data_point in self.random_locations:
             if (
                 abs(current_grid_x - data_point.location_data.point[0])
-                <= self.search_radius_squared
+                <= self.search_radius
                 and abs(current_grid_y - data_point.location_data.point[1])
-                <= self.search_radius_squared
+                <= self.search_radius
             ):
                 # applicable_locations.append(location)
-                distance = self.calc_distance_squared(
+                distance_sq = self.calc_distance_squared(
                     current_grid_x, current_grid_y, data_point.location_data.point
                 )
-                if distance <= self.search_radius_squared:
-                    applicable_locations.append(LocationFound(data_point, distance))
+                if distance_sq <= self.search_radius_squared:
+                    applicable_locations.append(LocationFound(data_point, math.sqrt(distance_sq)))
         return applicable_locations
 
 
