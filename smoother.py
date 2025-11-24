@@ -35,7 +35,7 @@ Parameters:
 - half_distance: Controls the decay rate of distance weighting
 - search_radius: Maximum distance to search for nearby data points
 """
-
+import sys
 import math
 import time
 from abc import ABC, abstractmethod
@@ -43,6 +43,7 @@ from dataclasses import dataclass
 from random import random
 from typing import Any
 import matplotlib.pyplot as plt
+import numpy as np
 
 Point = tuple[float, float]
 
@@ -246,13 +247,13 @@ class Smoother:
     def print(self, all:bool=False) -> None:
         """Print smoothed data of 10 first cells as a sample"""
         data_to_print = self.smoothed_data if all else self.smoothed_data[:10]
-        print("X, Y, Rate")
+        print("X,Y,Rate")
         for cell in data_to_print:
             # for cell in row:
             print(
                 #f"X: {cell.point[0]:.2f} Y: {cell.point[1]:.2f} Rate: {cell.rate:.2f}",
                 #end=" ",
-                f"{cell.point[0]:.2f}, {cell.point[1]:.2f}, {cell.rate:.2f}",
+                f"{cell.point[0]:.2f},{cell.point[1]:.2f},{cell.rate:.2f}",
             )
             # print()
 
@@ -261,9 +262,10 @@ class Smoother:
         pass
 
     def plot(self):
-        # Plot smoothed data
-        # use matplotlib for making a mesh plot
-        import numpy as np
+        """Plot the smoothed data using matplotlib and make a mesh plot.
+        Args:
+            None
+        """
         
         x_coords = [cell.point[0] for cell in self.smoothed_data]
         y_coords = [cell.point[1] for cell in self.smoothed_data]
@@ -346,6 +348,17 @@ def create_random_locations(
 
 if __name__ == "__main__":
     # Measeure time in ms
+    my_smoother_param = False
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--all":
+            my_smoother_param = True
+        else:
+            print("\033[91mInvalid argument.\033[0m")
+            print("    Use '--all' to print all smoothed data to stdout, to view or save results.\n")
+            print("\033[92m    Usage: python3 smoother.py [--all]\033[0m\n")
+            sys.exit(1)
+    #else:
+    #    my_smoother.print()
     start_time = time.time()
     grid_settings = GridMapDefinition(1000, 1000, 500)
     grid_size = grid_settings.grid_size
@@ -366,15 +379,15 @@ if __name__ == "__main__":
     # my_smoother.prepare()
     my_smoother.smooth()
     end_time = time.time()
-    my_smoother.print()
+
+    my_smoother.print(all=my_smoother_param)
+
     print(f"time taken: {end_time - start_time} seconds")
     # my_smoother.save() TODO
-    # my_smoother.plot() TODO
-    # TODO: Implement plot method
+    
     print("Do you want to plot the smoothed data? (y/n)")
     user_input = input().strip().lower()
     if user_input == "y":
         my_smoother.plot()
     else:
         print("Plotting skipped.")
-        
