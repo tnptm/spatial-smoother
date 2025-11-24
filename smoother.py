@@ -42,6 +42,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from random import random
 from typing import Any
+import matplotlib.pyplot as plt
 
 Point = tuple[float, float]
 
@@ -242,13 +243,16 @@ class Smoother:
 
         self.smoothed_data = smoothed_data
 
-    def print(self) -> None:
+    def print(self, all:bool=False) -> None:
         """Print smoothed data of 10 first cells as a sample"""
-        for cell in self.smoothed_data[:10]:
+        data_to_print = self.smoothed_data if all else self.smoothed_data[:10]
+        print("X, Y, Rate")
+        for cell in data_to_print:
             # for cell in row:
             print(
-                f"X: {cell.point[0]:.2f} Y: {cell.point[1]:.2f} Rate: {cell.rate:.2f}",
-                end=" ",
+                #f"X: {cell.point[0]:.2f} Y: {cell.point[1]:.2f} Rate: {cell.rate:.2f}",
+                #end=" ",
+                f"{cell.point[0]:.2f}, {cell.point[1]:.2f}, {cell.rate:.2f}",
             )
             # print()
 
@@ -258,7 +262,24 @@ class Smoother:
 
     def plot(self):
         # Plot smoothed data
-        pass
+        # use matplotlib for making a mesh plot
+        import numpy as np
+        
+        x_coords = [cell.point[0] for cell in self.smoothed_data]
+        y_coords = [cell.point[1] for cell in self.smoothed_data]
+        rates = [cell.rate for cell in self.smoothed_data]
+
+        # Reshape data for grid plotting
+        X = np.array(x_coords).reshape(self.grid_settings.rows, self.grid_settings.cols)
+        Y = np.array(y_coords).reshape(self.grid_settings.rows, self.grid_settings.cols)
+        Z = np.array(rates).reshape(self.grid_settings.rows, self.grid_settings.cols)
+
+        plt.pcolormesh(X, Y, Z, shading='auto')
+        plt.xlabel("X Coordinate")
+        plt.ylabel("Y Coordinate")
+        plt.title("Smoothed Data Surface Plot")
+        plt.colorbar(label="Rate")
+        plt.show()
 
 
 def create_grid_map(
@@ -350,3 +371,10 @@ if __name__ == "__main__":
     # my_smoother.save() TODO
     # my_smoother.plot() TODO
     # TODO: Implement plot method
+    print("Do you want to plot the smoothed data? (y/n)")
+    user_input = input().strip().lower()
+    if user_input == "y":
+        my_smoother.plot()
+    else:
+        print("Plotting skipped.")
+        
