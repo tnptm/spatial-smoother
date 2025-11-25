@@ -85,51 +85,67 @@ class SearchWindow:
         List of found locations within the search radius.
     """
 
-    random_locations: list[LocationDataRate]
+    #random_locations: list[LocationDataRate]
+    data_points_sorted: list[list[float]]
     search_radius_squared: int
 
     def __init__(
         self,
-        random_locations: list[LocationDataRate],
+        data_points_sorted: list[list[float]],
         search_radius_squared: int,
     ):
-        self.random_locations = random_locations
+        self.data_points_sorted = data_points_sorted
         self.search_radius_squared = search_radius_squared
         self.search_radius = math.sqrt(search_radius_squared)
-        self.data_points_sorted = sorted(
-            self.random_locations, key=lambda loc: loc.location_data.point[1] # sort by Y coordinate
-        )
-
-    @staticmethod
-    def calc_distance_squared(grid_p_x: float, grid_p_y: float, point_x: float, point_y: float) -> float:
-        """Calculate squared distance between two points."""
-        return (grid_p_x - point_x) ** 2 + (grid_p_y - point_y) ** 2
         
-
-    def find_locations_in_radius(self, current_grid_x: float, current_grid_y: float) -> list[tuple[LocationDataRate, float]]:
+    #@staticmethod
+    #def calc_distance_squared(grid_p_x: float, grid_p_y: float, point_x: float, point_y: float) -> float:
+    #    """Calculate squared distance between two points."""
+    #    return (grid_p_x - point_x) ** 2 + (grid_p_y - point_y) ** 2
+        
+    def find_start_index(self, lower_limit_y: float) -> int:
+        """Binary search to find the starting index for Y coordinate."""
+        low = 0
+        high = len(self.data_points_sorted) - 1
+        while low <= high:
+            mid = (low + high) // 2
+            mid_y = self.data_points_sorted[mid][2]  # Y coordinate
+            if mid_y < lower_limit_y:
+                low = mid + 1
+            else:
+                high = mid - 1
+        return low
+    
+    def find_locations_in_radius(self, current_grid_x: float, current_grid_y: float) -> list[list[float]]:
         # Perform search
         #
         # Before calculating distances get locations in square 2*radius²
-        applicable_locations: list[tuple[LocationDataRate, float]] = []
+        applicable_locations: list[list[float]] = []
         #found_y = False
         
         # caching limits
         limit_y = current_grid_y + self.search_radius
         lower_limit_y = current_grid_y - self.search_radius
         
-        for data_point in self.data_points_sorted:
-            x, y = data_point.location_data.point
+
+        # Find starting index using binary search to improve efficiency
+        start_index = self.find_start_index(lower_limit_y)
+        #start_index = 0
+        for i in range(start_index, len(self.data_points_sorted)):
+
+            x, y = self.data_points_sorted[i][1], self.data_points_sorted[i][2]
             if (
                 lower_limit_y <= y <= limit_y and
                 #abs(current_grid_y - y) <= self.search_radius and                
                 abs(current_grid_x - x) <= self.search_radius
             ):
-                # applicable_locations.append(location)
-                distance_sq = self.calc_distance_squared(
-                    current_grid_x, current_grid_y, x, y
-                )
+                # Calculate squared distance x * x faster than ** 2
+                dx = current_grid_x - x
+                dy = current_grid_y - y
+                distance_sq = dx * dx + dy * dy
+                
                 if distance_sq <= self.search_radius_squared:
-                    applicable_locations.append((data_point, distance_sq))
+                    applicable_locations.append([*self.data_points_sorted[i], distance_sq])
             elif y > limit_y:
                 # Since data is sorted by Y coordinate, we can break early
                 break
@@ -159,7 +175,7 @@ class DistanceWeightedInterpolator(Interpolator):
         return 1 / (1 + (distance_squared / half_distance_squared) )
     
     
-    def interpolate(self, window_data: list[tuple[LocationDataRate, float]], half_distance_squared: float) -> float:
+    def interpolate(self, window_data: list[list[float]], half_distance_squared: float) -> float:
         """Interpolate the rate based on distance-weighted averaging.
 
         Args:
@@ -174,9 +190,9 @@ class DistanceWeightedInterpolator(Interpolator):
         for point_data in window_data:
             # Perform interpolation using point_data
             dist_weight = self.distance_weight_sq(
-                point_data[1], half_distance_squared    
+                point_data[-1], half_distance_squared    
             )
-            smoothed_rate += dist_weight * point_data[0].rate
+            smoothed_rate += dist_weight * point_data[3]
             total_weights += dist_weight
 
         if total_weights == 0:
@@ -196,7 +212,7 @@ class Smoother:
     """Smoother class for smoothing data using search window data."""
 
     # data: list[list[float]]
-    point_data: list[LocationDataRate]
+    point_data: list[list[float]] #list[LocationDataRate]
     smoothed_data: list[GridCellRate]
     grid_settings: GridMapDefinition
     half_distance: int
@@ -205,14 +221,14 @@ class Smoother:
     def __init__(
         self,
         # data: list[list[float]],
-        point_data: list[LocationDataRate],
+        point_data: list[list[float]], #list[LocationDataRate],
         grid_settings: GridMapDefinition,
         half_distance: int,
         search_radius: int,
         # interpolation_function: Interpolator,
     ):
         # self.data = data
-        self.point_data = point_data
+        self.point_data = point_data # sorted by y coordinate before passing
         self.grid_settings = grid_settings
         self.half_distance = half_distance
         self.half_distance_squared = half_distance ** 2
@@ -388,6 +404,17 @@ if __name__ == "__main__":
     random_locations = create_random_location_data(
         grid_settings, number_of_locations=100
     )
+
+    # sort random locations by Y coordinate for efficient searching
+    random_locations = sorted(
+            random_locations, key=lambda loc: loc.location_data.point[1] # sort by Y coordinate
+        )
+    
+    # transform random_locations to list of lists[float]
+    tmp_list: list[list[float]] = []
+    for loc in random_locations:
+        tmp_list.append( [loc.location_data.id, loc.location_data.point[0], loc.location_data.point[1], loc.rate] )
+    random_locations = tmp_list
 
     # point_data = generate_random_rates(random_locations)
     my_smoother = Smoother(
