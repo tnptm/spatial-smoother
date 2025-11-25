@@ -394,9 +394,9 @@ def create_random_location_data(
             loc_id + 1,
             #Point(
             #    [
-                    random() * grid_settings.cols * grid_settings.grid_size,
-                    random() * grid_settings.rows * grid_settings.grid_size,
-                    random() * 100
+            random() * grid_settings.cols * grid_settings.grid_size,
+            random() * grid_settings.rows * grid_settings.grid_size,
+            random() * 100
             #    ]
             #),  # Point(x,y)
         #)
