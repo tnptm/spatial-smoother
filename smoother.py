@@ -106,20 +106,20 @@ class SearchWindow:
         ]  # for numba njit function use
         self.y_lastid = len(self.ycoord_list) - 1  # cache length
 
-    def find_start_index(self, lower_limit_y: float) -> int:
-        """Binary search to find the starting index for Y coordinate.
-        Deprecated method. use function find_start_index_nb instead.
-        """
-        low = 0
-        high = self.y_lastid  # len(self.data_points_sorted) - 1
-        while low <= high:
-            mid = (low + high) // 2
-            mid_y = self.data_points_sorted[mid][2]  # Y coordinate
-            if mid_y < lower_limit_y:
-                low = mid + 1
-            else:
-                high = mid - 1
-        return low
+    # def find_start_index(self, lower_limit_y: float) -> int:
+    #    """Binary search to find the starting index for Y coordinate.
+    #    Deprecated method. use function find_start_index_nb instead.
+    #        """
+    #    low = 0
+    #    high = self.y_lastid  # len(self.data_points_sorted) - 1
+    #    while low <= high:
+    #        mid = (low + high) // 2
+    #        mid_y = self.data_points_sorted[mid][2]  # Y coordinate
+    #        if mid_y < lower_limit_y:
+    #            low = mid + 1
+    #        else:
+    #            high = mid - 1
+    #    return low
 
     def find_start_index_nb(self, lower_limit_y: float) -> int:
         """Binary search to find the starting index for Y coordinate."""
