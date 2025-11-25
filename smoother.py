@@ -377,51 +377,61 @@ class Smoother:
 
 def create_random_location_data(
     grid_settings: GridMapDefinition, number_of_locations: int
-) -> list[LocationDataRate]:
+) -> list[list[float]]: # list[LocationDataRate]:
     """Create random locations within a grid (index,x,y, rate).
     - nrows: Number of rows in the grid.
     - xcols: Number of columns in the grid.
     - grid_size: Size of each cell in the grid.
     - number_of_locations: Number of random locations to generate.
 
-    returns: List of LocationDataRates objects.
+    returns: List of lists [index, x, y, rate].
     """
 
     rate_data = []
     for loc_id in range(number_of_locations):
-        loc_data = LocationData(
+        #loc_data = LocationData(
+        loc_data = [
             loc_id + 1,
-            Point(
-                [
+            #Point(
+            #    [
                     random() * grid_settings.cols * grid_settings.grid_size,
                     random() * grid_settings.rows * grid_settings.grid_size,
-                ]
-            ),  # Point(x,y)
-        )
-        rate_data.append(LocationDataRate(loc_data, random() * 100))  # max rate = 100
+                    random() * 100
+            #    ]
+            #),  # Point(x,y)
+        #)
+        ]
+        #rate_data.append(LocationDataRate(loc_data, random() * 100))  # max rate = 100
+        rate_data.append(loc_data)
 
     return rate_data
 
 
 def create_random_locations(
     xcols: int, nrows: int, grid_size: int, number_of_locations: int
-) -> list[LocationDataRate]:
+) -> list[list[float]]:
     """Create random locations within a grid (index,x,y, rate).
     - nrows: Number of rows in the grid.
     - xcols: Number of columns in the grid.
     - grid_size: Size of each cell in the grid.
     - number_of_locations: Number of random locations to generate.
+
+    returns: List of lists [index, x, y, rate].
     """
     from random import random
 
     rate_data = []
     for loc_id in range(number_of_locations):
-        loc_data = LocationData(
+        #loc_data = LocationData(
+        loc_data = [
             loc_id + 1,
             random() * xcols * grid_size,  # x
             random() * nrows * grid_size,  # y
-        )
-        rate_data.append(LocationDataRate(loc_data, random() * 100))  # max rate = 100
+            random() * 100
+        ]  
+        #)
+        #rate_data.append(LocationDataRate(loc_data, ))  # max rate = 100
+        rate_data.append(loc_data)
 
     return rate_data
 
@@ -437,14 +447,14 @@ def main(my_smoother_param: bool) -> None:
 
     # sort random locations by Y coordinate for efficient searching
     random_locations = sorted(
-            random_locations, key=lambda loc: loc.location_data.point[1] # sort by Y coordinate
+            random_locations, key=lambda loc: loc[2] # sort by Y coordinate
         )
     
     # transform random_locations to list of lists[float]
-    tmp_list: list[list[float]] = []
-    for loc in random_locations:
-        tmp_list.append( [loc.location_data.id, loc.location_data.point[0], loc.location_data.point[1], loc.rate] )
-    random_locations = tmp_list
+    #tmp_list: list[list[float]] = []
+    #for loc in random_locations:
+    #    tmp_list.append( [loc.location_data.id, loc.location_data.point[0], loc.location_data.point[1], loc.rate] )
+    #random_locations = tmp_list
 
     # point_data = generate_random_rates(random_locations)
     my_smoother = Smoother(
