@@ -44,6 +44,7 @@ from random import random
 from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
+#from numba import njit
 
 Point = tuple[float, float]
 
@@ -72,6 +73,21 @@ class GridMapDefinition:
     cols: int
     grid_size: float
 
+#sw_data: np.ndarray # 2D list for grid data
+#sw_data: list[float] # 2D list for grid data
+#@njit    
+def find_start_index_nb(y_coords: list[float], lower_limit_y: float) -> int:
+    """Binary search to find the starting index for Y coordinate."""
+    low = 0
+    high = len(y_coords) - 1
+    while low <= high:
+        mid = (low + high) // 2
+        mid_y = y_coords[mid]  # Y coordinate
+        if mid_y < lower_limit_y:
+            low = mid + 1
+        else:
+            high = mid - 1
+    return low
 
 class SearchWindow:
     """Search window for finding locations within a certain radius.
@@ -97,16 +113,21 @@ class SearchWindow:
         self.data_points_sorted = data_points_sorted
         self.search_radius_squared = search_radius_squared
         self.search_radius = math.sqrt(search_radius_squared)
-        
+        #global sw_data
+        #sw_data = np.array([ y_coord[2] for y_coord in data_points_sorted ])  # for numba njit function use
+        self.ycoord_list = [ y_coord[2] for y_coord in data_points_sorted ]  # for numba njit function use
+        self.y_lastid = len(self.ycoord_list) - 1 # cache length
     #@staticmethod
     #def calc_distance_squared(grid_p_x: float, grid_p_y: float, point_x: float, point_y: float) -> float:
     #    """Calculate squared distance between two points."""
     #    return (grid_p_x - point_x) ** 2 + (grid_p_y - point_y) ** 2
-        
+      
     def find_start_index(self, lower_limit_y: float) -> int:
-        """Binary search to find the starting index for Y coordinate."""
+        """Binary search to find the starting index for Y coordinate.
+        Deprecated method. use function find_start_index_nb instead.
+        """
         low = 0
-        high = len(self.data_points_sorted) - 1
+        high = self.y_lastid#len(self.data_points_sorted) - 1
         while low <= high:
             mid = (low + high) // 2
             mid_y = self.data_points_sorted[mid][2]  # Y coordinate
@@ -116,6 +137,20 @@ class SearchWindow:
                 high = mid - 1
         return low
     
+    def find_start_index_nb(self, lower_limit_y: float) -> int:
+        """Binary search to find the starting index for Y coordinate."""
+        low = 0
+        #high = self.y_lastid
+        high = len(self.ycoord_list) - 1
+        while low <= high:
+            mid = (low + high) // 2
+            mid_y = self.ycoord_list[mid]  # Y coordinate
+            if mid_y < lower_limit_y:
+                low = mid + 1
+            else:
+                high = mid - 1
+        return low
+
     def find_locations_in_radius(self, current_grid_x: float, current_grid_y: float) -> list[list[float]]:
         # Perform search
         #
@@ -129,24 +164,30 @@ class SearchWindow:
         
 
         # Find starting index using binary search to improve efficiency
-        start_index = self.find_start_index(lower_limit_y)
+        # start_index = self.find_start_index(lower_limit_y)
+        start_index = self.find_start_index_nb( lower_limit_y)
         #start_index = 0
         for i in range(start_index, len(self.data_points_sorted)):
-
-            x, y = self.data_points_sorted[i][1], self.data_points_sorted[i][2]
-            if (
-                lower_limit_y <= y <= limit_y and
-                #abs(current_grid_y - y) <= self.search_radius and                
-                abs(current_grid_x - x) <= self.search_radius
-            ):
-                # Calculate squared distance x * x faster than ** 2
-                dx = current_grid_x - x
-                dy = current_grid_y - y
-                distance_sq = dx * dx + dy * dy
-                
-                if distance_sq <= self.search_radius_squared:
-                    applicable_locations.append([*self.data_points_sorted[i], distance_sq])
-            elif y > limit_y:
+            datap = self.data_points_sorted[i]
+            x = datap[1]
+            y = datap[2]
+            if y <= limit_y: # removeing unnecessary if statements (-0.5s)
+                if (
+                    #lower_limit_y <= y <= limit_y and # checked by binary search
+                    #y <= limit_y and
+                    #abs(current_grid_y - y) <= self.search_radius and                
+                    abs(current_grid_x - x) <= self.search_radius
+                ):
+                    # Calculate squared distance x * x faster than ** 2
+                    dx = current_grid_x - x
+                    dy = current_grid_y - y
+                    distance_sq = dx * dx + dy * dy
+                    
+                    if distance_sq <= self.search_radius_squared:
+                        #applicable_locations.append([*datap,  distance_sq])
+                        applicable_locations.append([datap[0], x, y, datap[3], distance_sq])
+            #elif y > limit_y:
+            else:
                 # Since data is sorted by Y coordinate, we can break early
                 break
         return applicable_locations
@@ -213,7 +254,7 @@ class Smoother:
 
     # data: list[list[float]]
     point_data: list[list[float]] #list[LocationDataRate]
-    smoothed_data: list[GridCellRate]
+    #smoothed_data: list[GridCellRate]
     grid_settings: GridMapDefinition
     half_distance: int
     search_radius: int
@@ -276,7 +317,8 @@ class Smoother:
                     self.half_distance_squared)
 
                 smoothed_data.append(
-                    GridCellRate(Point((x_coord, y_coord)), smoothed_rate_xy)
+                    #GridCellRate(Point((x_coord, y_coord)), smoothed_rate_xy)
+                    [grid_cell_center_x, grid_cell_center_y, smoothed_rate_xy]
                 )
 
         self.smoothed_data = smoothed_data
@@ -290,7 +332,8 @@ class Smoother:
             print(
                 #f"X: {cell.point[0]:.2f} Y: {cell.point[1]:.2f} Rate: {cell.rate:.2f}",
                 #end=" ",
-                f"{cell.point[0]:.2f},{cell.point[1]:.2f},{cell.rate:.2f}",
+                #f"{cell.point[0]:.2f},{cell.point[1]:.2f},{cell.rate:.2f}",
+                f"{cell[0]:.2f},{cell[1]:.2f},{cell[2]:.2f}",
             )
             # print()
 
@@ -304,9 +347,9 @@ class Smoother:
             None
         """
         
-        x_coords = [cell.point[0] for cell in self.smoothed_data]
-        y_coords = [cell.point[1] for cell in self.smoothed_data]
-        rates = [cell.rate for cell in self.smoothed_data]
+        x_coords = [cell[0] for cell in self.smoothed_data]
+        y_coords = [cell[1] for cell in self.smoothed_data]
+        rates = [cell[2] for cell in self.smoothed_data]
 
         # Reshape data for grid plotting
         X = np.array(x_coords).reshape(self.grid_settings.rows, self.grid_settings.cols)
@@ -382,23 +425,10 @@ def create_random_locations(
 
     return rate_data
 
-
-if __name__ == "__main__":
-    # Measeure time in ms
-    my_smoother_param = False
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "--all":
-            my_smoother_param = True
-        else:
-            print("\033[91mInvalid argument.\033[0m")
-            print("    Use '--all' to print all smoothed data to stdout, to view or save results.\n")
-            print("\033[92m    Usage: python3 smoother.py [--all]\033[0m\n")
-            sys.exit(1)
-    #else:
-    #    my_smoother.print()
+def main(my_smoother_param: bool) -> None:
     start_time = time.time()
     grid_settings = GridMapDefinition(1000, 1000, 500)
-    grid_size = grid_settings.grid_size
+    #grid_size = grid_settings.grid_size
     half_distance = 10_000
     search_radius = 150_000
     random_locations = create_random_location_data(
@@ -430,7 +460,7 @@ if __name__ == "__main__":
 
     my_smoother.print(all=my_smoother_param)
 
-    print(f"time taken: {end_time - start_time} seconds")
+    print(f"\nTime taken: {end_time - start_time} seconds")
     # my_smoother.save() TODO
     
     print("Do you want to plot the smoothed data? (y/n)")
@@ -439,3 +469,18 @@ if __name__ == "__main__":
         my_smoother.plot()
     else:
         print("Plotting skipped.")
+
+if __name__ == "__main__":
+    # Measeure time in ms
+    my_smoother_param = False
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--all":
+            my_smoother_param = True
+        else:
+            print("\033[91mInvalid argument.\033[0m")
+            print("    Use '--all' to print all smoothed data to stdout, to view or save results.\n")
+            print("\033[92m    Usage: python3 smoother.py [--all]\033[0m\n")
+            sys.exit(1)
+    
+    main(my_smoother_param)
+    
