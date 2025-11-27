@@ -287,11 +287,12 @@ class Smoother:
         # Perform smoothing
         # pass
         ## CREATE colID,Xcoord list
+        cell_center = self.grid_settings.grid_size / 2
+
         column_coord_list = [
-            column_id * self.grid_settings.grid_size
+            column_id * self.grid_settings.grid_size + cell_center
             for column_id in range(self.grid_settings.cols)
         ]
-        cell_center = self.grid_settings.grid_size / 2
 
         search_window = SearchWindow(self.point_data, self.search_radius_squared)
         interpolator: DistanceWeightedInterpolator = DistanceWeightedInterpolator()
@@ -300,23 +301,23 @@ class Smoother:
         smoothed_data: list[tuple[float, float, float]|None] = [None] * (self.grid_settings.rows * self.grid_settings.cols)
         index = 0
         for row in range(self.grid_settings.rows):
-            y_coord = row * self.grid_settings.grid_size
+            y_coord = row * self.grid_settings.grid_size + cell_center
             for x_coord in column_coord_list:
                 # define search window data
-                grid_cell_center_x = x_coord + cell_center
-                grid_cell_center_y = y_coord + cell_center
+                #grid_cell_center_x = x_coord + cell_center
+                #grid_cell_center_y = y_coord + cell_center
 
                 # interpolator = DistanceWeightedInterpolator(search_window.find_locations_in_radius(grid_cell_center_x, grid_cell_center_y))
                 smoothed_rate_xy = interpolator.interpolate(
                     search_window.find_locations_in_radius(
-                        grid_cell_center_x, grid_cell_center_y
+                        x_coord, y_coord
                     ),
                     self.half_distance_squared,
                 )
 
                 smoothed_data[index] = (
                     # GridCellRate(Point((x_coord, y_coord)), smoothed_rate_xy)
-                    (grid_cell_center_x, grid_cell_center_y, smoothed_rate_xy)
+                    (x_coord, y_coord, smoothed_rate_xy)
                 )
                 index += 1
 
@@ -374,7 +375,7 @@ def create_random_location_data(
 
     returns: List of lists [index, x, y, rate].
     """
-
+    #cell_center = grid_settings.grid_size / 2
     rate_data = []
     for loc_id in range(number_of_locations):
         # loc_data = LocationData(
@@ -382,41 +383,12 @@ def create_random_location_data(
             loc_id + 1,
             # Point(
             #    [
-            random() * grid_settings.cols * grid_settings.grid_size,
-            random() * grid_settings.rows * grid_settings.grid_size,
+            random() * grid_settings.cols * grid_settings.grid_size, #+ cell_center,
+            random() * grid_settings.rows * grid_settings.grid_size, # + cell_center,
             random() * 100,
             #    ])
         )
         # rate_data.append(LocationDataRate(loc_data, random() * 100))  # max rate = 100
-        rate_data.append(loc_data)
-
-    return rate_data
-
-
-def create_random_locations(
-    xcols: int, nrows: int, grid_size: int, number_of_locations: int
-) -> list[tuple[float, float, float, float]]:
-    """Create random locations within a grid (index,x,y, rate).
-    - nrows: Number of rows in the grid.
-    - xcols: Number of columns in the grid.
-    - grid_size: Size of each cell in the grid.
-    - number_of_locations: Number of random locations to generate.
-
-    returns: List of lists [index, x, y, rate].
-    """
-    from random import random
-
-    rate_data = []
-    for loc_id in range(number_of_locations):
-        # loc_data = LocationData(
-        loc_data = (
-            loc_id + 1,
-            random() * xcols * grid_size,  # x
-            random() * nrows * grid_size,  # y
-            random() * 100,
-        )
-        # )
-        # rate_data.append(LocationDataRate(loc_data, ))  # max rate = 100
         rate_data.append(loc_data)
 
     return rate_data
