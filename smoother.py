@@ -124,8 +124,8 @@ class SearchWindow:
     def find_start_index_nb(self, lower_limit_y: float) -> int:
         """Binary search to find the starting index for Y coordinate."""
         low = 0
-        # high = self.y_lastid
-        high = len(self.ycoord_list) - 1
+        high = self.y_lastid
+        #high = len(self.ycoord_list) - 1
         while low <= high:
             mid = (low + high) // 2
             mid_y = self.ycoord_list[mid]  # Y coordinate
@@ -137,10 +137,10 @@ class SearchWindow:
 
     def find_locations_in_radius(
         self, current_grid_x: float, current_grid_y: float
-    ) -> list[list[float]]:
+    ) -> list[tuple[float, float, float, float, float]]:
         # Perform search
         # Before calculating distances get locations in square 2*radius²
-        applicable_locations: list[list[float]] = []
+        applicable_locations: list[tuple[float, float, float, float, float]] = []
 
         # caching limits
         limit_y = current_grid_y + self.search_radius
@@ -168,7 +168,8 @@ class SearchWindow:
                     if distance_sq <= self.search_radius_squared:
                         # applicable_locations.append([*datap,  distance_sq])
                         applicable_locations.append(
-                            [datap[0], x, y, datap[3], distance_sq]
+                            #[datap[0], x, y, datap[3], distance_sq]
+                            (datap[0], x, y, datap[3], distance_sq)
                         )
             else:
                 # Since data is sorted by Y break early
@@ -201,7 +202,9 @@ class DistanceWeightedInterpolator(Interpolator):
         return 1 / (1 + (distance_squared / half_distance_squared))
 
     def interpolate(
-        self, window_data: list[list[float]], half_distance_squared: float
+        self, 
+        window_data: list[tuple[float, float, float, float, float]], 
+        half_distance_squared: float
     ) -> float:
         """Interpolate the rate based on distance-weighted averaging.
 
@@ -303,7 +306,7 @@ class Smoother:
 
                 smoothed_data.append(
                     # GridCellRate(Point((x_coord, y_coord)), smoothed_rate_xy)
-                    [grid_cell_center_x, grid_cell_center_y, smoothed_rate_xy]
+                    (grid_cell_center_x, grid_cell_center_y, smoothed_rate_xy)
                 )
 
         self.smoothed_data = smoothed_data
@@ -383,7 +386,7 @@ def create_random_location_data(
 
 def create_random_locations(
     xcols: int, nrows: int, grid_size: int, number_of_locations: int
-) -> list[list[float]]:
+) -> list[tuple[float, float, float, float]]:
     """Create random locations within a grid (index,x,y, rate).
     - nrows: Number of rows in the grid.
     - xcols: Number of columns in the grid.
@@ -397,12 +400,12 @@ def create_random_locations(
     rate_data = []
     for loc_id in range(number_of_locations):
         # loc_data = LocationData(
-        loc_data = [
+        loc_data = (
             loc_id + 1,
             random() * xcols * grid_size,  # x
             random() * nrows * grid_size,  # y
             random() * 100,
-        ]
+        )
         # )
         # rate_data.append(LocationDataRate(loc_data, ))  # max rate = 100
         rate_data.append(loc_data)
