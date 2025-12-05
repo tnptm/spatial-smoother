@@ -1,3 +1,111 @@
+"""
+smoother.numba_jit_looper
+-------------------------
+
+Numba-accelerated spatial smoothing utilities and an InterpolateLoop/Smoother
+implementation that computes a distance-weighted smoothed rate on a regular
+grid. The functions in this module are designed to be JIT compiled with Numba
+(@njit) and therefore impose simple, statically-typed data-layout requirements.
+
+Key concepts
+- Input point_data should be sorted by Y coordinate (ascending) to enable
+    efficient early-exit during radius search and to allow binary-search
+    for the starting Y index.
+- Two point record formats are supported:
+        * Without population:  [id, x, y, rate]
+        * With population:     [id, x, y, population, rate]
+    The code detects which format is in use by inspecting the length of the
+    first record.
+- All numeric arrays/values used by njit functions should be numpy arrays
+    with float64 dtype (or scalars convertible to float64). Python lists of
+    lists are accepted at the Python boundary but are converted to numpy arrays
+    inside the JIT entrypoint.
+
+Provided functions and class
+- find_start_index_nb(ycoord_list, y_lastid, lower_limit_y) -> int
+        Binary search to find the lowest index in ycoord_list whose Y >=
+        lower_limit_y. ycoord_list is a 1-D numpy array of Y coordinates.
+        Returns an integer index (0..y_lastid+1).
+
+- find_locations_in_radius(current_grid_x, current_grid_y, search_radius,
+                                                     search_radius_squared, data_points_sorted,
+                                                     with_population, ycoord_list, y_lastid) -> list[list[float]]
+        Scans point data starting from the binary-searched Y start index and
+        collects points within the circular search radius. Uses an axis-aligned
+        square pre-filter on X and Y before computing squared Euclidean distance.
+        Returns a typed Numba list-of-lists where each inner list encodes a
+        point's data plus the distance squared:
+            * with_population == True:
+                    [id, x, y, population, rate, distance_sq]
+            * with_population == False:
+                    [id, x, y, rate, distance_sq]
+        Note: data_points_sorted must be sorted by Y increasing.
+
+- interpolate_nb(locations_in_radius, half_distance_squared, with_population) -> float
+        Compute a distance-weighted interpolated (smoothed) rate from the list of
+        nearby points. Uses the weight function:
+                weight = 1 / (1 + dist_sq / half_distance_squared)
+        If with_population is True then weights are multiplied by population and
+        the weighted sum is normalized by the total (weight * population). Returns
+        0.0 if no points are available or total weight is zero.
+
+- loop_with_numba(point_data, grid_settings_rows, grid_settings_cols, grid_size,
+                                    half_distance_squared, search_radius_squared,
+                                    interpolation_function_name) -> np.ndarray
+        Numba entrypoint that performs the full grid loop. Behaviour:
+            * Converts point_data into numpy float64 arrays and builds a y-coordinate
+                array for binary searching.
+            * Computes the grid cell center coordinates and for each cell:
+                    - Finds nearby points via find_locations_in_radius
+                    - Calls interpolate_nb (selected by interpolation_function_name)
+                    - Stores results in a (rows*cols, 3) numpy array: [x, y, smoothed_rate]
+        Inputs should be numeric and sized appropriately. The function returns a
+        float64 numpy array shaped (rows*cols, 3).
+
+- prepare_xcoord_list_numba(grid_size, ncols) -> np.ndarray
+        Small helper that returns a 1-D numpy array of column center X coordinates
+        for ncols columns using a grid cell center offset (grid_size / 2).
+
+- NumbaJitLooper(InterpolateLoop, Smoother)
+        Class wrapper that exposes the loop_coords() method to run the smoothing
+        pipeline using loop_with_numba. After execution, `self.smoothed_data` is a
+        numpy array with one row per grid cell and columns [x_center, y_center,
+        smoothed_rate].
+
+Usage notes
+- Because these routines are JIT compiled, types must be consistent between
+    calls. Convert or validate inputs (point formatting, dtypes, sorting) in the
+    Python layer before calling the njit entrypoint to avoid hard-to-debug type
+    inference errors.
+- The module avoids Python features that Numba cannot compile (e.g. eval,
+    complex object attribute access). Keep interpolation and distance metrics
+    simple and vectorizable where possible.
+- Performance considerations:
+        * Pre-sorting points by Y and using binary search yields an early-exit and
+            generally reduces the number of distance computations.
+        * Using squared distances avoids expensive sqrt calls during neighbor search.
+        * Passing numpy arrays of dtype float64 and keeping data in contiguous
+            layouts helps Numba optimize loops.
+
+Examples
+- Typical flow (Python-side, conceptual):
+        1. Prepare point_data as a list of lists sorted by Y.
+        2. Create grid settings: rows, cols, grid_size.
+        3. Instantiate NumbaJitLooper(point_data, grid_settings, half_distance,
+             search_radius, interpolation_function="interpolate_nb").
+        4. Call looper.loop_coords().
+        5. Read looper.smoothed_data (shape = rows*cols x 3).
+
+Limitations & Edge Cases
+- The binary search assumes ycoord_list is ascending and y_lastid points to
+    the last valid index.
+- If all weights are zero (e.g. no neighbors), interpolator returns 0.0.
+- The module is specialized for 2D Cartesian coordinates and Euclidean
+    distance; extension to spherical coords or anisotropic metrics would require
+    changes to search and weighting logic.
+
+
+"""
 import numpy as np
 from .smooth_main import Smoother, InterpolateLoop
 from numba import njit
@@ -36,6 +144,7 @@ def find_locations_in_radius(
     ycoord_list: np.ndarray,
     y_lastid: int,
 ) -> list[list[float]]:
+    """Find locations within the search radius from current grid cell center."""
     # Perform search
     # Before calculating distances get locations in square 2*radius²
     applicable_locations: list[list[float]] = []
@@ -125,7 +234,8 @@ def loop_with_numba(
     search_radius_squared: int,
     interpolation_function_name: str,
 ) -> np.ndarray:
-    # search_window = search_window_with_numba(point_data, search_radius_squared)
+    """Numba JIT compiled smoothing loop over grid cells."""
+    
 
     # caching variables
     search_radius = math.sqrt(search_radius_squared)
@@ -185,6 +295,7 @@ def prepare_xcoord_list_numba(grid_size: float, ncols: int) -> np.ndarray:
 
 
 class NumbaJitLooper(InterpolateLoop, Smoother):
+    """Smoother using Numba JIT compiled loop for distance-weighted smoothing."""
     smoothed_data: np.ndarray
 
     def __init__(

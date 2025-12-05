@@ -3,10 +3,11 @@ from smoother import runner as smoothie_runner
 
 
 def main():
-    print("This runs simple speed comparison for distance and distance-population weighting!")
-    #distance.run_distance(plot=False)
-    #distance_population.run_dist_pop_weight(plot=False)
+    """Main function to run distance and distance-population weighting comparisons."""
 
+    print("This runs simple speed comparison for distance and distance-population weighting!")
+    
+    # print pure python version (7.5s)
     distance_interp_settings = smoothie_runner.RunnerSettings(
         smooth_func='distance',
         plot=True,
