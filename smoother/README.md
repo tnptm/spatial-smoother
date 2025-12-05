@@ -160,4 +160,6 @@ Located in `smooth_main.py`. Orchestrates the smoothing process.
 
 ## License
 
-Copyright © 2025 Toni Patama. All rights reserved.
+This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+
+Copyright (c) 2025 Toni Patama.
