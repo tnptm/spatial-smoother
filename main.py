@@ -23,7 +23,7 @@ def main():
     )
     smoothie_runner.run(distance_interp_settings)
 
-    # print numpy version
+    # print numpy version (>2x slower than pure python looper for this case)
     distance_interp_settings_numpy = smoothie_runner.RunnerSettings(
         smooth_func='distance',
         plot=True,
@@ -40,7 +40,7 @@ def main():
     )
     smoothie_runner.run(distance_interp_settings_numpy)
 
-    # print numba njit version
+    # print numba njit version (0.4x speedup over pure python looper 7.5s -->3.5s)
     distance_interp_settings_njit = smoothie_runner.RunnerSettings(
         smooth_func='distance',
         plot=True,
