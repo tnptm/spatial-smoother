@@ -28,7 +28,7 @@ A comprehensive spatial data smoothing and interpolation library for Python. Thi
 
 ## Overview
 
-The Smoother module implements spatial interpolation algorithms for smoothing randomly distributed point data across a regular grid. It's designed for applications such as:
+The Smoother module implements spatial interpolation algorithms for smoothing randomly distributed point data across a regular grid. This is based on my scientific work in Finnish Cancer Registry and article of Small Area Smoothing of Cancer Incidence (link: https://www.sciencedirect.com/science/article/abs/pii/S1877584515300393). It's designed for applications such as:
 
 - Population density mapping
 - Environmental data interpolation
@@ -630,8 +630,8 @@ settings = RunnerSettings(
 ---
 
 ## License
-
-Copyright © 2025 Toni Patama. All rights reserved.
+GPL 3 licence
+Copyright © 2025 Toni Patama. 
 
 ---
 
