@@ -1,4 +1,3 @@
-# from typing import TYPE_CHECKING
 import numpy as np
 from .smooth_main import Smoother, InterpolateLoop
 from numba import njit
