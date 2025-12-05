@@ -14,3 +14,8 @@ dependencies = [
 members = [
     "pypy",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.8",
+]
