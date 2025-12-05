@@ -21,7 +21,7 @@ def main():
         print_all=False,
         looper_func='pure-python-looper'
     )
-    #smoothie_runner.run(distance_interp_settings)
+    smoothie_runner.run(distance_interp_settings)
 
     # print numpy version
     distance_interp_settings_numpy = smoothie_runner.RunnerSettings(
@@ -38,7 +38,7 @@ def main():
         print_all=False,
         looper_func='numpy-vectorized'
     )
-    #smoothie_runner.run(distance_interp_settings_numpy)
+    smoothie_runner.run(distance_interp_settings_numpy)
 
     # print numba njit version
     distance_interp_settings_njit = smoothie_runner.RunnerSettings(
@@ -70,7 +70,7 @@ def main():
         save_smoothed=True,
         print_all=False
     )
-    #smoothie_runner.run(dist_pop_interp_settings_wpop)
+    smoothie_runner.run(dist_pop_interp_settings_wpop)
 
 if __name__ == "__main__":
     main()
