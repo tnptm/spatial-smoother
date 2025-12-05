@@ -8,24 +8,33 @@ author: Toni Patama tonipat047@gmail.com, 2025-11-28, version 1.0
 
 """
 
-from .smooth_main import GridMapDefinition, DistanceWeightedInterpolator, DistancePopulationWeightedInterpolator, Smoother
+from .smooth_main import (
+    GridMapDefinition,
+    DistanceWeightedInterpolator,
+    DistancePopulationWeightedInterpolator,
+    NumpyVectorizedLooper,
+    # Smoother,
+    PurePythonLooper,
+)
+from .numba_jit_looper import NumbaJitLooper
 from .data_generator import create_random_location_data
 from dataclasses import dataclass
 from typing import Literal
 import time
 
 
-SMOOTHER_TYPES = ['distance', 'distance-population']
+SMOOTHER_TYPES = ["distance", "distance-population"]
 
 SMOOTHERS = {
-    'distance': DistanceWeightedInterpolator,
-    'distance-population': DistancePopulationWeightedInterpolator,
+    "distance": DistanceWeightedInterpolator,
+    "distance-population": DistancePopulationWeightedInterpolator,
 }
+
 
 @dataclass
 class RunnerSettings:
     """Settings for the smoother runner.
-    
+
     Configures how the smoothing process is performed and optionally visualized.
     Parameters:
         smooth_func (Literal['distance', 'distance-population'], default='distance'):
@@ -59,9 +68,12 @@ class RunnerSettings:
         print_all (bool, default=False):
             If True, enables verbose logging for debugging, printing intermediate steps
             and statistics throughout smoothing.
-    
+
     """
-    smooth_func: Literal['distance', 'distance-population'] = 'distance'  # default can be 'distance'
+
+    smooth_func: Literal["distance", "distance-population"] = (
+        "distance"  # default can be 'distance'
+    )
     plot: bool = False
     half_distance: int = 15_000
     search_radius: int = 150_000
@@ -72,27 +84,35 @@ class RunnerSettings:
     max_population: int = 200_000
     save_smoothed: bool = False
     print_all: bool = False
+    looper_func: Literal["numpy-vectorized", "pure-python-looper", "numba-jit"] = (
+        "pure-python-looper"
+    )
 
 
-    
 def run(settings: RunnerSettings):
     """Run specified smoothing function. Run distance weighting smoother and time it."""
 
     start_time = time.time()
-    grid_settings = GridMapDefinition(settings.nrows, settings.ncols, settings.grid_size)
+    grid_settings = GridMapDefinition(
+        settings.nrows, settings.ncols, settings.grid_size
+    )
     # grid_size = grid_settings.grid_size
-    #half_distance = settings.half_distance
-    #search_radius = settings.search_radius
+    # half_distance = settings.half_distance
+    # search_radius = settings.search_radius
 
     print(f"Running '{settings.smooth_func.capitalize()}'-weighting smoother...")
 
     print(f"Generating {settings.num_points} random location datasets...")
     random_locations = create_random_location_data(
-        grid_settings, 
-        with_population=True if settings.smooth_func == 'distance-population' else False,
+        grid_settings,
+        with_population=True
+        if settings.smooth_func == "distance-population"
+        else False,
         number_of_locations=settings.num_points,
         expected_rate=settings.num_points,
-        max_population=settings.max_population if hasattr(settings, 'max_population') else 200_000
+        max_population=settings.max_population
+        if hasattr(settings, "max_population")
+        else 200_000,
     )
 
     # sort random locations by Y coordinate for efficient searching
@@ -101,18 +121,41 @@ def run(settings: RunnerSettings):
         key=lambda loc: loc[2],  # sort by Y coordinate
     )
 
-    # point_data = generate_random_rates(random_locations)
-    my_smoother = Smoother(
-        random_locations,
-        grid_settings,
-        settings.half_distance,
-        settings.search_radius,
-        interpolation_function=SMOOTHERS[settings.smooth_func]() # load appropriate smoother object
-    )
-    # generate rates for each location
-    # my_smoother.prepare()
+    print(f"{settings.looper_func} smoother selected.")
+
+    if settings.looper_func == "numpy-vectorized":
+        my_smoother = NumpyVectorizedLooper(
+            random_locations,
+            grid_settings,
+            settings.half_distance,
+            settings.search_radius,
+            interpolation_function=SMOOTHERS[
+                settings.smooth_func
+            ](),  # load appropriate smoother object
+        )
+    elif settings.looper_func == "numba-jit":
+        my_smoother = NumbaJitLooper(
+            random_locations,
+            grid_settings,
+            settings.half_distance,
+            settings.search_radius,
+            interpolation_function=SMOOTHERS[
+                settings.smooth_func
+            ](),  # load appropriate smoother object
+        )
+    else:
+        my_smoother = PurePythonLooper(
+            random_locations,
+            grid_settings,
+            settings.half_distance,
+            settings.search_radius,
+            interpolation_function=SMOOTHERS[
+                settings.smooth_func
+            ](),  # load appropriate smoother object
+        )
+
     print("Smoothing data...")
-    my_smoother.smooth()
+    my_smoother.smooth(my_smoother.loop_coords)
 
     if settings.save_smoothed:
         print("Saving smoothed data to file...")
@@ -121,7 +164,9 @@ def run(settings: RunnerSettings):
     print("Smoothing completed.")
     end_time = time.time()
 
-    my_smoother.print(all=settings.print_all if hasattr(settings, 'print_all') else False)
+    my_smoother.print(
+        all=settings.print_all if hasattr(settings, "print_all") else False
+    )
 
     print(f"\nTime elapsed: {end_time - start_time} seconds")
     # my_smoother.save() TODO
@@ -134,10 +179,11 @@ def run(settings: RunnerSettings):
         else:
             print("Plotting skipped.")
 
+
 if __name__ == "__main__":
     # sample run
     settings = RunnerSettings(
-        smooth_func='distance-population',
+        smooth_func="distance-population",
         plot=True,
         half_distance=15_000,
         search_radius=150_000,
@@ -147,6 +193,6 @@ if __name__ == "__main__":
         num_points=100,
         max_population=200_000,
         save_smoothed=True,
-        print_all=False
+        print_all=False,
     )
     run(settings)

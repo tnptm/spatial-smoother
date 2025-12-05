@@ -9,15 +9,18 @@ author: Toni Patama tonipat047@gmail.com, 2025-11-28, version 1.0
 
 from datetime import datetime
 import math
-#import sys
-#import time
+
+# import sys
+# import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-#from random import random
-from typing import Any
+
+# from random import random
+from typing import Any, Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
+# from numba_jit_looper import NumbaJitLooper, loop_with_numba
 
 Point = tuple[float, float]
 
@@ -84,15 +87,15 @@ class SearchWindow:
             "population": 3,
             "rate": 4,
         }
-        self.with_population = data_points_sorted[0].__len__() == 5 # with population data
-
-
+        self.with_population = (
+            data_points_sorted[0].__len__() == 5
+        )  # with population data
 
     def find_start_index_nb(self, lower_limit_y: float) -> int:
         """Binary search to find the starting index for Y coordinate."""
         low = 0
         high = self.y_lastid
-        #high = len(self.ycoord_list) - 1
+        # high = len(self.ycoord_list) - 1
         while low <= high:
             mid = (low + high) // 2
             mid_y = self.ycoord_list[mid]  # Y coordinate
@@ -175,9 +178,9 @@ class DistanceWeightedInterpolator(Interpolator):
         return 1 / (1 + (distance_squared / half_distance_squared))
 
     def interpolate(
-        self, 
-        window_data: list[tuple[float, float, float, float, float]], 
-        half_distance_squared: float
+        self,
+        window_data: list[tuple[float, float, float, float, float]],
+        half_distance_squared: float,
     ) -> float:
         """Interpolate the rate based on distance-weighted averaging.
 
@@ -194,8 +197,10 @@ class DistanceWeightedInterpolator(Interpolator):
             return 0.0
         for point_data in window_data:
             # Perform interpolation using point_data
-            #dist_weight = self.distance_weight_sq(point_data[-1], half_distance_squared)
-            dist_weight = 1 / (1 + (point_data[4] / half_distance_squared)) # inlined distance weight_sq()
+            # dist_weight = self.distance_weight_sq(point_data[-1], half_distance_squared)
+            dist_weight = 1 / (
+                1 + (point_data[4] / half_distance_squared)
+            )  # inlined distance weight_sq()
             smoothed_rate += dist_weight * point_data[3]
             total_weights += dist_weight
 
@@ -205,11 +210,12 @@ class DistanceWeightedInterpolator(Interpolator):
 
         return weighted_mean
 
+
 class DistancePopulationWeightedInterpolator(Interpolator):
     def interpolate(
-        self, 
-        window_data: list[tuple[int, float, float, float, float, float]], 
-        half_distance_squared: float
+        self,
+        window_data: list[tuple[int, float, float, float, float, float]],
+        half_distance_squared: float,
     ) -> float:
         """Interpolate the rate based on distance-weighted averaging.
 
@@ -233,8 +239,10 @@ class DistancePopulationWeightedInterpolator(Interpolator):
             # Perform interpolation using point_data
 
             # distance-population weighting Wdist * Wpop
-            dist_pop_weight_i =  point_data[population_index] / (1 + (point_data[distance_index] / half_distance_squared)) # inlined distance weight_sq()
-            #population_weight = point_data[3]
+            dist_pop_weight_i = point_data[population_index] / (
+                1 + (point_data[distance_index] / half_distance_squared)
+            )  # inlined distance weight_sq()
+            # population_weight = point_data[3]
             smoothed_rate += dist_pop_weight_i * point_data[rate_index]
             total_weights += dist_pop_weight_i
 
@@ -244,10 +252,17 @@ class DistancePopulationWeightedInterpolator(Interpolator):
 
         return weighted_mean
 
+
 @dataclass
 class GridCellRate:
     point: Point
     rate: float
+
+
+class InterpolateLoop(ABC):
+    @abstractmethod
+    def loop_coords(self, *args: Any, **kwargs: Any) -> float:
+        raise NotImplementedError
 
 
 class Smoother:
@@ -285,7 +300,7 @@ class Smoother:
         # Prepare data for smoothing, generate rates for each location
         pass
 
-    def smooth(self):
+    def smooth_old(self, search_window: SearchWindow):
         """
         Perform smoothing using search_window_data
 
@@ -302,24 +317,24 @@ class Smoother:
             for column_id in range(self.grid_settings.cols)
         ]
 
-        search_window = SearchWindow(self.point_data, self.search_radius_squared)
-        #interpolator: DistanceWeightedInterpolator = DistanceWeightedInterpolator()
+        # search_window = SearchWindow(self.point_data, self.search_radius_squared)
+        # interpolator: DistanceWeightedInterpolator = DistanceWeightedInterpolator()
 
-        #pre-allocate result list
-        smoothed_data: list[tuple[float, float, float]|None] = [None] * (self.grid_settings.rows * self.grid_settings.cols)
+        # pre-allocate result list
+        smoothed_data: list[tuple[float, float, float] | None] = [None] * (
+            self.grid_settings.rows * self.grid_settings.cols
+        )
         index = 0
         for row in range(self.grid_settings.rows):
             y_coord = row * self.grid_settings.grid_size + cell_center
             for x_coord in column_coord_list:
                 # define search window data
-                #grid_cell_center_x = x_coord + cell_center
-                #grid_cell_center_y = y_coord + cell_center
+                # grid_cell_center_x = x_coord + cell_center
+                # grid_cell_center_y = y_coord + cell_center
 
                 # interpolator = DistanceWeightedInterpolator(search_window.find_locations_in_radius(grid_cell_center_x, grid_cell_center_y))
                 smoothed_rate_xy = self.interpolation_function.interpolate(
-                    search_window.find_locations_in_radius(
-                        x_coord, y_coord
-                    ),
+                    search_window.find_locations_in_radius(x_coord, y_coord),
                     self.half_distance_squared,
                 )
 
@@ -330,6 +345,12 @@ class Smoother:
                 index += 1
 
         self.smoothed_data = smoothed_data
+
+    def smooth(
+        self, looper: Callable
+    ):  # , search_window: SearchWindow, looper_function: InterpolateLoop):
+        """Perform smoothing using specified looper function for coordinate iteration."""
+        looper()  # self, search_window, looper_function)
 
     def print(self, all: bool = False) -> None:
         """Print smoothed data of 10 first cells as a sample"""
@@ -362,7 +383,11 @@ class Smoother:
                 row_data = []
                 for col in range(self.grid_settings.cols):
                     index = row * self.grid_settings.cols + col
-                    rate = self.smoothed_data[index][2] if self.smoothed_data[index] is not None else -9999
+                    rate = (
+                        self.smoothed_data[index][2]
+                        if self.smoothed_data[index] is not None
+                        else -9999
+                    )
                     row_data.append(f"{rate:.3f}")
                 f.write(" ".join(row_data) + "\n")
 
@@ -392,3 +417,126 @@ class Smoother:
         plt.show()
 
 
+class PurePythonLooper(InterpolateLoop, Smoother):
+    # smoothed_data: list[tuple[float, float, float]|None]
+    def __init__(
+        self,
+        point_data,
+        grid_settings,
+        half_distance,
+        search_radius,
+        interpolation_function,
+    ):
+        super().__init__(
+            point_data,
+            grid_settings,
+            half_distance,
+            search_radius,
+            interpolation_function,
+        )
+
+    def loop_coords(self) -> None:
+        """Perform smoothing using pure Python looping over coordinates."""
+        cell_center = self.grid_settings.grid_size / 2
+        column_coord_list = [
+            column_id * self.grid_settings.grid_size + cell_center
+            for column_id in range(self.grid_settings.cols)
+        ]
+
+        search_window = SearchWindow(self.point_data, self.search_radius_squared)
+        smoothed_data: list[tuple[float, float, float] | None] = [None] * (
+            self.grid_settings.rows * self.grid_settings.cols
+        )
+        index = 0
+        for row in range(self.grid_settings.rows):
+            y_coord = row * self.grid_settings.grid_size + cell_center
+            for x_coord in column_coord_list:
+                # interpolator = DistanceWeightedInterpolator(search_window.find_locations_in_radius(grid_cell_center_x, grid_cell_center_y))
+                smoothed_rate_xy = self.interpolation_function.interpolate(
+                    search_window.find_locations_in_radius(x_coord, y_coord),
+                    self.half_distance_squared,
+                )
+
+                smoothed_data[index] = (x_coord, y_coord, smoothed_rate_xy)
+                index += 1
+
+        self.smoothed_data = smoothed_data
+
+
+class NumpyVectorizedLooper(InterpolateLoop, Smoother):
+    smoothed_data: np.ndarray
+
+    def __init__(
+        self,
+        point_data,
+        grid_settings,
+        half_distance,
+        search_radius,
+        interpolation_function,
+    ):
+        super().__init__(
+            point_data,
+            grid_settings,
+            half_distance,
+            search_radius,
+            interpolation_function,
+        )
+
+    def prepare_xcoord_list(self) -> np.ndarray:
+        """Prepare numpy array of x coordinates for grid columns."""
+        cell_center = self.grid_settings.grid_size / 2
+        column_coord_array = np.array(
+            [
+                column_id * self.grid_settings.grid_size + cell_center
+                for column_id in range(self.grid_settings.cols)
+            ]
+        )
+        return column_coord_array
+
+    # @staticmethod
+    def numpy_loop_coords(
+        self, xy_coords: np.ndarray, search_window: SearchWindow
+    ) -> None:
+        """Perform smoothing using Numpy vectorized operations.
+        - loop over xy_coords as numpy array and calculate smoothed rates in every coordinate pair
+        - optimized for speed using numpy operations
+        """
+        result_list: np.ndarray = np.empty((xy_coords.shape[0], 3), dtype=np.float64)
+        for i in range(xy_coords.shape[0]):
+            # x_coord = xy_coords[i, 0]
+            # y_coord = xy_coords[i, 1]
+
+            result_list[i, :] = [
+                xy_coords[i, 0],
+                xy_coords[i, 1],
+                self.interpolation_function.interpolate(
+                    search_window.find_locations_in_radius(
+                        xy_coords[i, 0], xy_coords[i, 1]
+                    ),
+                    self.half_distance_squared,
+                ),
+            ]
+
+        self.smoothed_data = result_list
+
+    def loop_coords(self) -> None:
+        """Perform smoothing using Numpy vectorized operations."""
+
+        search_window = SearchWindow(self.point_data, self.search_radius_squared)
+        cell_center = (
+            self.grid_settings.grid_size * 0.5
+        )  # multiplication faster than division
+        y_coords = (
+            np.arange(self.grid_settings.rows) * self.grid_settings.grid_size
+        ) + cell_center
+        x_coords = (
+            np.arange(self.grid_settings.cols) * self.grid_settings.grid_size
+        ) + cell_center
+
+        # make 2 column arrays of the coordinates x * y grid
+        xy_coords = np.column_stack(
+            (x_coords.repeat(y_coords.shape[0]), np.tile(y_coords, x_coords.shape[0]))
+        )
+
+        # run numpy vectorized smoothing loop
+        self.numpy_loop_coords(xy_coords, search_window)
